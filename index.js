@@ -1,11 +1,11 @@
-const express = require('express')
-const app = express()
-require('dotenv').config()
-const cors = require('cors')
-const cookieParser = require('cookie-parser')
-const { MongoClient, ServerApiVersion, ObjectId, Timestamp } = require('mongodb')
-const jwt = require('jsonwebtoken')
-
+const express = require('express');
+const app = express();
+require('dotenv').config();
+const cors = require('cors');
+const cookieParser = require('cookie-parser');
+const { MongoClient, ServerApiVersion, ObjectId, Timestamp } = require('mongodb');
+const jwt = require('jsonwebtoken');
+const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
 const port = process.env.PORT || 3000;
 
 // middleware
@@ -52,6 +52,7 @@ async function run() {
   try {
     const roomsCollection = client.db('airbnb').collection('rooms');
     const usersCollection = client.db('airbnb').collection('users');
+    const bookingsCollection = client.db('airbnb').collection('bookings');
 
 
 // verify Admin middleware
@@ -105,6 +106,25 @@ const verifyHost = async (req, res, next) => {
       }
     })
 
+    // create payment-intent
+    app.post('/create-payment-intent', async (req, res) =>{
+      const price = req.body.price;
+      const priceInCent = parseFloat(price)*100;
+      if(! price || priceInCent < 1) return;
+      // Generate clientSecret
+      const {client_secret} = await stripe.paymentIntents.create({
+        amount: priceInCent,
+        currency: "usd",
+        
+        automatic_payment_methods: {
+          enabled: true,
+        },
+      });
+      
+      // send client secret as response
+      res.send({clientSecret:client_secret});
+    });
+    
     // save a user data in db 
     app.put('/user', async (req, res) => {
       const user = req.body;
@@ -204,6 +224,34 @@ const verifyHost = async (req, res, next) => {
       const query = {_id: new ObjectId(id)};
       const result = await roomsCollection.findOne(query);
       res.send(result);
+    });
+
+   // Save a booking data in db
+
+    app.post('/booking',verifyToken, async(req, res) =>{
+      const bookingData = req.body;
+      // save room booking info
+      const result = await bookingsCollection.insertOne(bookingData);
+      res.send(result);
+    })
+
+// Update Room Status
+    app.patch('/room/status/:id', async(req, res) =>{
+      const id = req.params.id;
+      const status= req.body.status;
+      const query = {_id: new ObjectId(id)}
+      const updateDoc = {
+        $set: {booked:status},
+      }
+      const result = await roomsCollection.updateOne(query, updateDoc);
+      res.send(result);
+    })
+
+    // get all booking for a guest 
+    app.get('/my-bookings', verifyToken, async(req, res) =>{
+      const email = req.params.email;
+      const query = {'guest.email':email};
+      
     })
 
     // Send a ping to confirm a successful connection

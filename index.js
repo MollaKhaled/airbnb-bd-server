@@ -7,7 +7,7 @@ const { MongoClient, ServerApiVersion, ObjectId, Timestamp } = require('mongodb'
 const jwt = require('jsonwebtoken');
 const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
 const port = process.env.PORT || 3000;
-
+const nodemailer = require("nodemailer");
 // middleware
 const corsOptions = {
   origin: ['http://localhost:5173', 'http://localhost:5174'],
@@ -16,8 +16,50 @@ const corsOptions = {
 }
 app.use(cors(corsOptions))
 
-app.use(express.json())
-app.use(cookieParser())
+app.use(express.json());
+app.use(cookieParser());
+
+// send email
+const sendEmail = (emailAddress, emailData) =>{
+  const transporter = nodemailer.createTransport({
+    service:'gmail',
+    host: "smtp.gmail.com",
+    port: 587,
+    secure: false, // true for port 465, false for other ports
+    auth: {
+      user:process.env.TRANSPORTER_EMAIL,
+      pass:process.env.TRANSPORTER_PASS,
+    },
+  });
+
+   const mailBody = {
+    from: `"airbnb bd" <${process.env.TRANSPORTER_EMAIL}>`, // sender address
+    to: emailAddress, // list of receivers
+    subject: emailData.subject, // Subject line
+    html:emailData.message, // html body
+   }
+   transporter.sendMail(mailBody, (error, info)=>{
+      if(error){
+        console.log(error)
+      }
+      else{
+        console.log('Email Sent: ' + info.response);
+      }
+    });
+
+ // verify connection configuration
+  transporter.verify(function (error, success) {
+    if (error) {
+    console.log(error);
+    } else {
+    console.log("Server is ready to take our messages");
+    }
+   });
+
+
+
+
+}
 
 // Verify Token Middleware
 const verifyToken = async (req, res, next) => {
@@ -149,6 +191,11 @@ const verifyHost = async (req, res, next) => {
         },
       };
         const result = await usersCollection.updateOne(query, updateDoc, options);
+        // welcome new user
+        sendEmail(user?.email ,{
+          subject:"Welcome to Airbnb Bd",
+          message:`Browse rooms and book them`
+        })
         res.send(result);
       
     })
@@ -232,6 +279,16 @@ const verifyHost = async (req, res, next) => {
       const bookingData = req.body;
       // save room booking info
       const result = await bookingsCollection.insertOne(bookingData);
+      // send email to guest
+      sendEmail(bookingData?.guest?.email, {
+        subject:"Booking Successfully!",
+        message:`Dear Sir/Mam ,<br/> Booking Successful! Thank you for booking with us. Your reservation has been confirmed. We look forward to serving you soon!.<br/> Transaction id: ${bookingData.transactionId}`
+      })
+      // send email to Host
+      sendEmail(bookingData?.host?.email, {
+        subject:"Your room got booked!",
+        message:` Booking Successful!.Reservation has been confirmed.Client Name: ${bookingData.guest?.name}`
+      })
       res.send(result);
     })
 

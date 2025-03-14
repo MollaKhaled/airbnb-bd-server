@@ -10,7 +10,7 @@ const port = process.env.PORT || 3000;
 const nodemailer = require("nodemailer");
 // middleware
 const corsOptions = {
-  origin: ['http://localhost:5173','https://international-hotel.netlify.app'],
+  origin: ['http://localhost:5173','https://international-hotel.netlify.app/'],
   credentials: true,
   optionSuccessStatus: 200,
 }

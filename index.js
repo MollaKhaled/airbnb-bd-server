@@ -10,7 +10,7 @@ const port = process.env.PORT || 3000;
 const nodemailer = require("nodemailer");
 // middleware
 const corsOptions = {
-  origin: ['http://localhost:5173', 'http://localhost:5174'],
+  origin: ['http://localhost:5173'],
   credentials: true,
   optionSuccessStatus: 200,
 }
@@ -55,7 +55,6 @@ const sendEmail = (emailAddress, emailData) =>{
     console.log("Server is ready to take our messages");
     }
    });
-
 
 
 
@@ -191,12 +190,12 @@ const verifyHost = async (req, res, next) => {
         },
       };
         const result = await usersCollection.updateOne(query, updateDoc, options);
-        // welcome new user
-        sendEmail(user?.email ,{
-          subject:"Welcome to Airbnb Bd",
-          message:`Browse rooms and book them`
-        })
-        res.send(result);
+          // welcome new user
+          sendEmail(user?.email ,{
+            subject:"Welcome to Artsense ",
+            message:`Browse rooms and book them`
+          })
+          res.send(result);
       
     })
     // get a user info by email
